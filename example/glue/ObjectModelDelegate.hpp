@@ -156,10 +156,11 @@ public:
 #if defined(OMR_VALGRIND_MEMCHECK)
 		VALGRIND_MAKE_MEM_DEFINED(headerSlotAddress,sizeof(fomrobject_t));
 #endif /* defined(OMR_VALGRIND_MEMCHECK) */
-		return extractSizeFromObjectHeaderSlot(*headerSlotAddress);
+		uintptr_t objectSize = extractSizeFromObjectHeaderSlot(*headerSlotAddress);
 #if defined(OMR_VALGRIND_MEMCHECK)
 		VALGRIND_MAKE_MEM_NOACCESS(headerSlotAddress,sizeof(fomrobject_t));
 #endif /* defined(OMR_VALGRIND_MEMCHECK) */
+		return objectSize;
 	}
 
 	/**
