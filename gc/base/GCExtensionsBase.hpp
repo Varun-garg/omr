@@ -723,7 +723,9 @@ public:
 	bool compactOnIdle; /**< Forces compaction if global GC executed while VM Runtime State set to IDLE, default is false */
 #endif
 
-	uintptr_t valgrindMemppolAddr; /** <Memory pool's address for valgrind> **/
+#if defined(OMR_VALGRIND_MEMCHECK)
+	uintptr_t valgrindMempoolAddr; /** <Memory pool's address for valgrind> **/
+#endif /* defined(OMR_VALGRIND_MEMCHECK) */
 
 	/* Function Members */
 private:
