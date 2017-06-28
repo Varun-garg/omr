@@ -36,7 +36,8 @@
 
 #if defined(OMR_VALGRIND_MEMCHECK)
 #include <valgrind/memcheck.h>
-#endif/**
+#endif /* defined(OMR_VALGRIND_MEMCHECK) */
+/**
  * Base class for language-specific object allocation and initialization. Subclasses
  * must complete initialization of the attached MM_AllocateDescription before calling
  * allocateAndInitializeObject().
@@ -202,7 +203,7 @@ public:
 #if defined(OMR_VALGRIND_MEMCHECK)
 				/* Allocate object in Valgrind memory pool before modifying it */
 				VALGRIND_MEMPOOL_ALLOC(env->getExtensions()->valgrindMemppolAddr,heapBytes,_allocateDescription.getBytesRequested());
-#endif
+#endif /* defined(OMR_VALGRIND_MEMCHECK) */
 
 				/* wipe allocated space if requested and allowed (NON_ZERO_TLH flag set inhibits zeroing) */
 				if (shouldZeroMemory(env)) {
