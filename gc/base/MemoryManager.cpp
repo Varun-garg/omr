@@ -71,8 +71,8 @@ MM_MemoryManager::createVirtualMemoryForHeap(MM_EnvironmentBase* env, MM_MemoryH
 
 	uintptr_t allocateSize = size;
 
-	uintptr_t concurrentScavengerPageAlignmentIncrement = 0;
 	uintptr_t concurrentScavengerPageSize = 0;
+	uintptr_t concurrentScavengerPageAlignmentIncrement = 0;
 	if (extensions->isConcurrentScavengerEnabled()) {
 		OMRPORT_ACCESS_FROM_ENVIRONMENT(env);
 		/* allocate extra memory to guarantee proper alignment regardless start address location */
