@@ -28,6 +28,10 @@
 
 #include "AtomicOperations.hpp"
 
+#if defined(OMR_VALGRIND_MEMCHECK)
+#include <valgrind/memcheck.h>
+#endif /* defined(OMR_VALGRIND_MEMCHECK) */
+
 class GC_SlotObject
 {
 private:
@@ -68,7 +72,14 @@ public:
 	 */
 	MMINLINE omrobjectptr_t readReferenceFromSlot()
 	{
+#if defined(OMR_VALGRIND_MEMCHECK)
+		VALGRIND_MAKE_MEM_DEFINED(_slot,sizeof(fomrobject_t));
+		omrobjectptr_t result = convertPointerFromToken(*_slot);
+		VALGRIND_MAKE_MEM_NOACCESS(_slot,sizeof(fomrobject_t));
+		return result;
+#else /* defined(OMR_VALGRIND_MEMCHECK) */
 		return convertPointerFromToken(*_slot);
+#endif /* defined(OMR_VALGRIND_MEMCHECK) */
 	}
 
 	/**
@@ -87,10 +98,17 @@ public:
 	 */
 	MMINLINE void writeReferenceToSlot(omrobjectptr_t reference)
 	{
+
+#if defined(OMR_VALGRIND_MEMCHECK)
+		VALGRIND_MAKE_MEM_DEFINED(_slot,sizeof(fomrobject_t));
+#endif /* defined(OMR_VALGRIND_MEMCHECK) */
 		fomrobject_t compressed = convertTokenFromPointer(reference);
 		if (compressed != *_slot) {
 			*_slot = compressed;
 		}
+#if defined(OMR_VALGRIND_MEMCHECK)
+		VALGRIND_MAKE_MEM_NOACCESS(_slot,sizeof(fomrobject_t));
+#endif /* defined(OMR_VALGRIND_MEMCHECK) */
 	}
 
 	/**

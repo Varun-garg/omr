@@ -28,6 +28,10 @@
 #include "GCExtensionsBase.hpp"
 #include "SlotObject.hpp"
 
+#if defined(OMR_VALGRIND_MEMCHECK)
+#include <valgrind/memcheck.h>
+#endif /* defined(OMR_VALGRIND_MEMCHECK) */
+
 /**
  * This object scanning model allows an inline getNextSlot() implementation and works best
  * with object representations that contain all object reference slots within one or more
@@ -194,10 +198,20 @@ public:
 	{
 		while (NULL != _scanPtr) {
 			/* while there is at least one bit-mapped slot, advance scan ptr to a non-NULL slot or end of map */
+#if defined(OMR_VALGRIND_MEMCHECK)
+			VALGRIND_MAKE_MEM_DEFINED(_scanPtr,sizeof(fomrobject_t));
+#endif /* defined(OMR_VALGRIND_MEMCHECK) */
 			while ((0 != _scanMap) && ((0 == (1 & _scanMap)) || (0 == *_scanPtr))) {
 				_scanPtr += 1;
 				_scanMap >>= 1;
+#if defined(OMR_VALGRIND_MEMCHECK)
+			VALGRIND_MAKE_MEM_NOACCESS(_scanPtr-1,sizeof(fomrobject_t));
+			VALGRIND_MAKE_MEM_DEFINED(_scanPtr,sizeof(fomrobject_t));
+#endif /* defined(OMR_VALGRIND_MEMCHECK) */
 			}
+#if defined(OMR_VALGRIND_MEMCHECK)
+			VALGRIND_MAKE_MEM_NOACCESS(_scanPtr,sizeof(fomrobject_t));
+#endif /* defined(OMR_VALGRIND_MEMCHECK) */
 			if (0 != _scanMap) {
 				/* set up to return slot object for non-NULL slot at scan ptr and advance scan ptr */
 				_slotObject.writeAddressToSlot(_scanPtr);
@@ -265,11 +279,21 @@ public:
 	{
 		while (NULL != _scanPtr) {
 			/* while there is at least one bit-mapped slot, advance scan ptr to a non-NULL slot or end of map */
+#if defined(OMR_VALGRIND_MEMCHECK)
+			VALGRIND_MAKE_MEM_DEFINED(_scanPtr,sizeof(fomrobject_t));
+#endif /* defined(OMR_VALGRIND_MEMCHECK) */
 			while ((0 != _scanMap) && ((0 == (1 & _scanMap)) || (0 == *_scanPtr))) {
 				_scanPtr += 1;
 				_scanMap >>= 1;
 				_leafMap >>= 1;
+#if defined(OMR_VALGRIND_MEMCHECK)
+			VALGRIND_MAKE_MEM_NOACCESS(_scanPtr-1,sizeof(fomrobject_t));
+			VALGRIND_MAKE_MEM_DEFINED(_scanPtr,sizeof(fomrobject_t));
+#endif /* defined(OMR_VALGRIND_MEMCHECK) */
 			}
+#if defined(OMR_VALGRIND_MEMCHECK)
+			VALGRIND_MAKE_MEM_NOACCESS(_scanPtr,sizeof(fomrobject_t));
+#endif /* defined(OMR_VALGRIND_MEMCHECK) */
 			if (0 != _scanMap) {
 				/* set up to return slot object for non-NULL slot at scan ptr and advance scan ptr */
 				_slotObject.writeAddressToSlot(_scanPtr);
