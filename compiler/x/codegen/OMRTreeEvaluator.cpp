@@ -1,6 +1,6 @@
 /*******************************************************************************
  *
- * (c) Copyright IBM Corp. 2000, 2016
+ * (c) Copyright IBM Corp. 2000, 2017
  *
  *  This program and the accompanying materials are made available
  *  under the terms of the Eclipse Public License v1.0 and
@@ -2687,174 +2687,6 @@ bool OMR::X86::TreeEvaluator::stopUsingCopyRegInteger(TR::Node* node, TR::Regist
    }
 
 
-TR::Register *
-OMR::X86::TreeEvaluator::compressStringEvaluator(
-      TR::Node *node,
-      TR::CodeGenerator *cg,
-      bool japaneseMethod)
-   {
-   TR::Node *srcObjNode, *dstObjNode, *startNode, *lengthNode;
-   TR::Register *srcObjReg, *dstObjReg, *lengthReg, *startReg;
-   bool stopUsingCopyReg1, stopUsingCopyReg2, stopUsingCopyReg3, stopUsingCopyReg4;
-
-   srcObjNode = node->getChild(0);
-   dstObjNode = node->getChild(1);
-   startNode = node->getChild(2);
-   lengthNode = node->getChild(3);
-
-   stopUsingCopyReg1 = TR::TreeEvaluator::stopUsingCopyRegAddr(srcObjNode, srcObjReg, cg);
-   stopUsingCopyReg2 = TR::TreeEvaluator::stopUsingCopyRegAddr(dstObjNode, dstObjReg, cg);
-   stopUsingCopyReg3 = TR::TreeEvaluator::stopUsingCopyRegInteger(startNode, startReg, cg);
-   stopUsingCopyReg4 = TR::TreeEvaluator::stopUsingCopyRegInteger(lengthNode, lengthReg, cg);
-
-   uintptrj_t hdrSize = TR::Compiler->om.contiguousArrayHeaderSizeInBytes();
-   generateRegImmInstruction(ADDRegImms(), node, srcObjReg, hdrSize, cg);
-   generateRegImmInstruction(ADDRegImms(), node, dstObjReg, hdrSize, cg);
-
-
-   // Now that we have all the registers, set up the dependencies
-   TR::RegisterDependencyConditions  *dependencies =
-      generateRegisterDependencyConditions((uint8_t)0, 6, cg);
-   TR::Register *resultReg = cg->allocateRegister();
-   TR::Register *dummy = cg->allocateRegister();
-   dependencies->addPostCondition(srcObjReg, TR::RealRegister::esi, cg);
-   dependencies->addPostCondition(dstObjReg, TR::RealRegister::edi, cg);
-   dependencies->addPostCondition(lengthReg, TR::RealRegister::ecx, cg);
-   dependencies->addPostCondition(startReg, TR::RealRegister::eax, cg);
-   dependencies->addPostCondition(resultReg, TR::RealRegister::edx, cg);
-   dependencies->addPostCondition(dummy, TR::RealRegister::ebx, cg);
-   dependencies->stopAddingConditions();
-
-   TR_RuntimeHelper helper;
-   if (TR::Compiler->target.is64Bit())
-      helper = japaneseMethod ? TR_AMD64compressStringJ : TR_AMD64compressString;
-   else
-      helper = japaneseMethod ? TR_IA32compressStringJ : TR_IA32compressString;
-   generateHelperCallInstruction(node, helper, dependencies, cg);
-   cg->stopUsingRegister(dummy);
-
-   for (uint16_t i = 0; i < node->getNumChildren(); i++)
-     cg->decReferenceCount(node->getChild(i));
-
-   if (stopUsingCopyReg1)
-      cg->getLiveRegisters(TR_GPR)->registerIsDead(srcObjReg);
-   if (stopUsingCopyReg2)
-      cg->getLiveRegisters(TR_GPR)->registerIsDead(dstObjReg);
-   if (stopUsingCopyReg3)
-      cg->getLiveRegisters(TR_GPR)->registerIsDead(startReg);
-   if (stopUsingCopyReg4)
-      cg->getLiveRegisters(TR_GPR)->registerIsDead(lengthReg);
-   node->setRegister(resultReg);
-   return resultReg;
-   }
-
-
-TR::Register *
-OMR::X86::TreeEvaluator::compressStringNoCheckEvaluator(
-      TR::Node *node,
-      TR::CodeGenerator *cg,
-      bool japaneseMethod)
-   {
-   TR::Node *srcObjNode, *dstObjNode, *startNode, *lengthNode;
-   TR::Register *srcObjReg, *dstObjReg, *lengthReg, *startReg;
-   bool stopUsingCopyReg1, stopUsingCopyReg2, stopUsingCopyReg3, stopUsingCopyReg4;
-
-   srcObjNode = node->getChild(0);
-   dstObjNode = node->getChild(1);
-   startNode = node->getChild(2);
-   lengthNode = node->getChild(3);
-
-   stopUsingCopyReg1 = TR::TreeEvaluator::stopUsingCopyRegAddr(srcObjNode, srcObjReg, cg);
-   stopUsingCopyReg2 = TR::TreeEvaluator::stopUsingCopyRegAddr(dstObjNode, dstObjReg, cg);
-   stopUsingCopyReg3 = TR::TreeEvaluator::stopUsingCopyRegInteger(startNode, startReg, cg);
-   stopUsingCopyReg4 = TR::TreeEvaluator::stopUsingCopyRegInteger(lengthNode, lengthReg, cg);
-
-   uintptrj_t hdrSize = TR::Compiler->om.contiguousArrayHeaderSizeInBytes();
-   generateRegImmInstruction(ADDRegImms(), node, srcObjReg, hdrSize, cg);
-   generateRegImmInstruction(ADDRegImms(), node, dstObjReg, hdrSize, cg);
-
-
-   // Now that we have all the registers, set up the dependencies
-   TR::RegisterDependencyConditions  *dependencies =
-      generateRegisterDependencyConditions((uint8_t)0, 5, cg);
-   dependencies->addPostCondition(srcObjReg, TR::RealRegister::esi, cg);
-   dependencies->addPostCondition(dstObjReg, TR::RealRegister::edi, cg);
-   dependencies->addPostCondition(lengthReg, TR::RealRegister::ecx, cg);
-   dependencies->addPostCondition(startReg, TR::RealRegister::eax, cg);
-   TR::Register *dummy = cg->allocateRegister();
-   dependencies->addPostCondition(dummy, TR::RealRegister::ebx, cg);
-   dependencies->stopAddingConditions();
-
-   TR_RuntimeHelper helper;
-   if (TR::Compiler->target.is64Bit())
-      helper = japaneseMethod ? TR_AMD64compressStringNoCheckJ : TR_AMD64compressStringNoCheck;
-   else
-      helper = japaneseMethod ? TR_IA32compressStringNoCheckJ : TR_IA32compressStringNoCheck;
-
-   generateHelperCallInstruction(node, helper, dependencies, cg);
-   cg->stopUsingRegister(dummy);
-
-   for (uint16_t i = 0; i < node->getNumChildren(); i++)
-     cg->decReferenceCount(node->getChild(i));
-
-   if (stopUsingCopyReg1)
-      cg->getLiveRegisters(TR_GPR)->registerIsDead(srcObjReg);
-   if (stopUsingCopyReg2)
-      cg->getLiveRegisters(TR_GPR)->registerIsDead(dstObjReg);
-   if (stopUsingCopyReg3)
-      cg->getLiveRegisters(TR_GPR)->registerIsDead(startReg);
-   if (stopUsingCopyReg4)
-      cg->getLiveRegisters(TR_GPR)->registerIsDead(lengthReg);
-   return NULL;
-   }
-
-TR::Register *OMR::X86::TreeEvaluator::andORStringEvaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   TR::Node *srcObjNode, *startNode, *lengthNode;
-   TR::Register *srcObjReg, *lengthReg, *startReg;
-   bool stopUsingCopyReg1, stopUsingCopyReg2, stopUsingCopyReg3;
-
-   srcObjNode = node->getChild(0);
-   startNode = node->getChild(1);
-   lengthNode = node->getChild(2);
-
-   stopUsingCopyReg1 = TR::TreeEvaluator::stopUsingCopyRegAddr(srcObjNode, srcObjReg, cg);
-   stopUsingCopyReg2 = TR::TreeEvaluator::stopUsingCopyRegInteger(startNode, startReg, cg);
-   stopUsingCopyReg3 = TR::TreeEvaluator::stopUsingCopyRegInteger(lengthNode, lengthReg, cg);
-
-   uintptrj_t hdrSize = TR::Compiler->om.contiguousArrayHeaderSizeInBytes();
-   generateRegImmInstruction(ADDRegImms(), node, srcObjReg, hdrSize, cg);
-
-   // Now that we have all the registers, set up the dependencies
-   TR::RegisterDependencyConditions  *dependencies =
-      generateRegisterDependencyConditions((uint8_t)0, 5, cg);
-   TR::Register *resultReg = cg->allocateRegister();
-   dependencies->addPostCondition(srcObjReg, TR::RealRegister::esi, cg);
-   dependencies->addPostCondition(lengthReg, TR::RealRegister::ecx, cg);
-   dependencies->addPostCondition(startReg, TR::RealRegister::eax, cg);
-   dependencies->addPostCondition(resultReg, TR::RealRegister::edx, cg);
-   TR::Register *dummy = cg->allocateRegister();
-   dependencies->addPostCondition(dummy, TR::RealRegister::ebx, cg);
-   dependencies->stopAddingConditions();
-
-   TR_RuntimeHelper helper =
-      TR::Compiler->target.is64Bit() ? TR_AMD64andORString : TR_IA32andORString;
-   generateHelperCallInstruction(node, helper, dependencies, cg);
-   cg->stopUsingRegister(dummy);
-
-   for (uint16_t i = 0; i < node->getNumChildren(); i++)
-     cg->decReferenceCount(node->getChild(i));
-
-   if (stopUsingCopyReg1)
-      cg->getLiveRegisters(TR_GPR)->registerIsDead(srcObjReg);
-   if (stopUsingCopyReg2)
-      cg->getLiveRegisters(TR_GPR)->registerIsDead(startReg);
-   if (stopUsingCopyReg3)
-      cg->getLiveRegisters(TR_GPR)->registerIsDead(lengthReg);
-   node->setRegister(resultReg);
-   return resultReg;
-   }
-
 TR::Block *OMR::X86::TreeEvaluator::getOverflowCatchBlock(TR::Node *node, TR::CodeGenerator *cg)
    {
    //make sure the overflowCHK has a catch block first
@@ -4340,85 +4172,6 @@ TR::Register *OMR::X86::TreeEvaluator::arraytranslateEvaluator(TR::Node *node, T
    return resultReg;
    }
 
-#ifdef J9_PROJECT_SPECIFIC
-TR::Register *OMR::X86::TreeEvaluator::encodeUTF16Evaluator(TR::Node *node, TR::CodeGenerator *cg)
-   {
-   // tree looks like:
-   // icall com.ibm.jit.JITHelpers.encodeUTF16{Big,Little}()
-   //    input ptr
-   //    output ptr
-   //    input length (in elements)
-   // Number of elements translated is returned
-
-   TR::MethodSymbol *symbol = node->getSymbol()->castToMethodSymbol();
-   bool bigEndian = symbol->getRecognizedMethod() == TR::com_ibm_jit_JITHelpers_transformedEncodeUTF16Big;
-
-   // Set up register dependencies
-   const int gprClobberCount = 2;
-   const int maxFprClobberCount = 5;
-   const int fprClobberCount = bigEndian ? 5 : 4; // xmm4 only needed for big-endian
-   TR::Register *srcPtrReg, *dstPtrReg, *lengthReg, *resultReg;
-   TR::Register *gprClobbers[gprClobberCount], *fprClobbers[maxFprClobberCount];
-   bool killSrc = TR::TreeEvaluator::stopUsingCopyRegAddr(node->getChild(0), srcPtrReg, cg);
-   bool killDst = TR::TreeEvaluator::stopUsingCopyRegAddr(node->getChild(1), dstPtrReg, cg);
-   bool killLen = TR::TreeEvaluator::stopUsingCopyRegInteger(node->getChild(2), lengthReg, cg);
-   resultReg = cg->allocateRegister();
-   for (int i = 0; i < gprClobberCount; i++)
-      gprClobbers[i] = cg->allocateRegister();
-   for (int i = 0; i < fprClobberCount; i++)
-      fprClobbers[i] = cg->allocateRegister(TR_FPR);
-
-   int depCount = 11;
-   TR::RegisterDependencyConditions *deps =
-      generateRegisterDependencyConditions((uint8_t)0, depCount, cg);
-
-   deps->addPostCondition(srcPtrReg, TR::RealRegister::esi, cg);
-   deps->addPostCondition(dstPtrReg, TR::RealRegister::edi, cg);
-   deps->addPostCondition(lengthReg, TR::RealRegister::edx, cg);
-   deps->addPostCondition(resultReg, TR::RealRegister::eax, cg);
-
-   deps->addPostCondition(gprClobbers[0], TR::RealRegister::ecx, cg);
-   deps->addPostCondition(gprClobbers[1], TR::RealRegister::ebx, cg);
-
-   deps->addPostCondition(fprClobbers[0], TR::RealRegister::xmm0, cg);
-   deps->addPostCondition(fprClobbers[1], TR::RealRegister::xmm1, cg);
-   deps->addPostCondition(fprClobbers[2], TR::RealRegister::xmm2, cg);
-   deps->addPostCondition(fprClobbers[3], TR::RealRegister::xmm3, cg);
-   if (bigEndian)
-      deps->addPostCondition(fprClobbers[4], TR::RealRegister::xmm4, cg);
-
-   deps->stopAddingConditions();
-
-   // Generate helper call
-   TR_RuntimeHelper helper;
-   if (TR::Compiler->target.is64Bit())
-      helper = bigEndian ? TR_AMD64encodeUTF16Big : TR_AMD64encodeUTF16Little;
-   else
-      helper = bigEndian ? TR_IA32encodeUTF16Big : TR_IA32encodeUTF16Little;
-
-   generateHelperCallInstruction(node, helper, deps, cg);
-
-   // Free up registers
-   for (int i = 0; i < gprClobberCount; i++)
-      cg->stopUsingRegister(gprClobbers[i]);
-   for (int i = 0; i < fprClobberCount; i++)
-      cg->stopUsingRegister(fprClobbers[i]);
-
-   for (uint16_t i = 0; i < node->getNumChildren(); i++)
-      cg->decReferenceCount(node->getChild(i));
-
-   TR_LiveRegisters *liveRegs = cg->getLiveRegisters(TR_GPR);
-   if (killSrc)
-      liveRegs->registerIsDead(srcPtrReg);
-   if (killDst)
-      liveRegs->registerIsDead(dstPtrReg);
-   if (killLen)
-      liveRegs->registerIsDead(lengthReg);
-
-   node->setRegister(resultReg);
-   return resultReg;
-   }
-#endif
 
 static void packUsingShift(TR::Node* node, TR::Register* tempReg, TR::Register* sourceReg, int32_t size, TR::CodeGenerator* cg)
    {
@@ -5005,15 +4758,14 @@ TR::Register* OMR::X86::TreeEvaluator::performSimpleAtomicMemoryUpdate(TR::Node*
 // TR::icall, TR::acall, TR::lcall, TR::fcall, TR::dcall, TR::call handled by directCallEvaluator
 TR::Register *OMR::X86::TreeEvaluator::directCallEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
-   static bool useJapaneseCompression = (feGetEnv("TR_JapaneseComp") != NULL);
-   static bool disableECCP256AESCBC = (feGetEnv("TR_disableECCP256AESCBC") != NULL);
-
    TR::Compilation *comp = cg->comp();
    TR::SymbolReference* SymRef = node->getSymbolReference();
+
    if (comp->getSymRefTab()->isNonHelper(SymRef, TR::SymbolReferenceTable::singlePrecisionSQRTSymbol))
       {
       return inlineSinglePrecisionSQRT(node, cg);
       }
+
    if (SymRef && SymRef->getSymbol()->castToMethodSymbol()->isInlinedByCG())
       {
       if (comp->getSymRefTab()->isNonHelper(SymRef, TR::SymbolReferenceTable::atomicAdd32BitSymbol))
@@ -5045,147 +4797,7 @@ TR::Register *OMR::X86::TreeEvaluator::directCallEvaluator(TR::Node *node, TR::C
    // If the method to be called is marked as an inline method, see if it can
    // actually be generated inline.
    //
-   TR::Register     *returnRegister = NULL;
-   TR::MethodSymbol *symbol = node->getSymbol()->castToMethodSymbol();
-
-   switch (symbol->getRecognizedMethod())
-      {
-#ifdef J9_PROJECT_SPECIFIC
-      case TR::java_nio_Bits_keepAlive:
-         {
-         TR_ASSERT(node->getNumChildren() == 1, "keepAlive is assumed to have just one argument");
-
-         // The only purpose of keepAlive is to prevent an otherwise
-         // unreachable object from being garbage collected, because we don't
-         // want its finalizer to be called too early.  There's no need to
-         // generate a full-blown call site just for this purpose.
-
-         TR::Register *valueToKeepAlive = cg->evaluate(node->getFirstChild());
-
-         // In theory, a value could be kept alive on the stack, rather than in
-         // a register.  It is unfortunate that the following deps will force
-         // the value into a register for no reason.  However, in many common
-         // cases, this label will have no effect on the generated code, and
-         // will only affect GC maps.
-         //
-         TR::RegisterDependencyConditions *deps = generateRegisterDependencyConditions((uint8_t)1, (uint8_t)1, cg);
-         deps->addPreCondition  (valueToKeepAlive, TR::RealRegister::NoReg, cg);
-         deps->addPostCondition (valueToKeepAlive, TR::RealRegister::NoReg, cg);
-         new (cg->trHeapMemory()) TR::X86LabelInstruction(LABEL, node, generateLabelSymbol(cg), deps, cg);
-         cg->decReferenceCount(node->getFirstChild());
-
-         return NULL; // keepAlive has no return value
-         }
-#endif
-      default:
-         break;
-      }
-
-#ifdef J9_PROJECT_SPECIFIC
-   if (cg->enableAESInHardwareTransformations() &&
-       (symbol->getRecognizedMethod() == TR::com_ibm_jit_crypto_JITAESCryptInHardware_doAESInHardware ||
-        symbol->getRecognizedMethod() == TR::com_ibm_jit_crypto_JITAESCryptInHardware_expandAESKeyInHardware))
-      {
-      return TR::TreeEvaluator::VMAESHelperEvaluator(node, cg);
-      }
-
-   if (symbol->getMandatoryRecognizedMethod() == TR::com_ibm_jit_JITHelpers_transformedEncodeUTF16Big ||
-       symbol->getMandatoryRecognizedMethod() == TR::com_ibm_jit_JITHelpers_transformedEncodeUTF16Little)
-      {
-      return TR::TreeEvaluator::encodeUTF16Evaluator(node, cg);
-      }
-
-   if (cg->getSupportsBDLLHardwareOverflowCheck() &&
-       (symbol->getRecognizedMethod() == TR::java_math_BigDecimal_noLLOverflowAdd ||
-        symbol->getRecognizedMethod() == TR::java_math_BigDecimal_noLLOverflowMul))
-      {
-      // Eat this call as its only here to anchor where a long lookaside overflow check
-      // needs to be done.  There should be a TR::icmpeq node following
-      // this one where the real overflow check will be inserted.
-      //
-      cg->recursivelyDecReferenceCount(node->getFirstChild());
-      cg->recursivelyDecReferenceCount(node->getSecondChild());
-      cg->evaluate(node->getChild(2));
-      cg->decReferenceCount(node->getChild(2));
-      returnRegister = cg->allocateRegister();
-      node->setRegister(returnRegister);
-      return returnRegister;
-      }
-
-   // If the method to be called is marked as an inline method, see if it can
-   // actually be generated inline.
-   //
-   else if (symbol->isVMInternalNative() || symbol->isJITInternalNative() ||
-       (symbol->getRecognizedMethod()==TR::java_lang_Integer_rotateLeft)  ||
-       (symbol->getRecognizedMethod()==TR::java_lang_Math_sqrt)  ||
-       (symbol->getRecognizedMethod()==TR::java_lang_StrictMath_sqrt)  ||
-       (symbol->getRecognizedMethod()==TR::java_lang_Math_max_I) ||
-       (symbol->getRecognizedMethod()==TR::java_lang_Math_min_I) ||
-       (symbol->getRecognizedMethod()==TR::java_lang_Math_max_L) ||
-       (symbol->getRecognizedMethod()==TR::java_lang_Math_min_L) ||
-       (symbol->getRecognizedMethod()==TR::java_lang_Math_abs_L) ||
-       (symbol->getRecognizedMethod()==TR::java_lang_Math_abs_D) ||
-       (symbol->getRecognizedMethod()==TR::java_lang_Math_abs_F) ||
-       (symbol->getRecognizedMethod()==TR::java_lang_Math_abs_I) ||
-       (symbol->getRecognizedMethod()==TR::java_lang_Long_reverseBytes) ||
-       (symbol->getRecognizedMethod()==TR::java_lang_Integer_reverseBytes) ||
-       (symbol->getRecognizedMethod()==TR::java_lang_Short_reverseBytes) ||
-       (symbol->getRecognizedMethod()==TR::java_lang_Class_isAssignableFrom) ||
-       (symbol->getRecognizedMethod()==TR::java_lang_System_nanoTime) ||
-       (symbol->getRecognizedMethod()==TR::java_util_concurrent_atomic_AtomicMarkableReference_doubleWordCAS) ||
-       (symbol->getRecognizedMethod()==TR::java_util_concurrent_atomic_AtomicStampedReference_doubleWordCAS) ||
-       (symbol->getRecognizedMethod()==TR::java_util_concurrent_atomic_AtomicMarkableReference_doubleWordSet) ||
-       (symbol->getRecognizedMethod()==TR::java_util_concurrent_atomic_AtomicStampedReference_doubleWordSet) ||
-       (symbol->getRecognizedMethod()==TR::java_util_concurrent_atomic_AtomicMarkableReference_doubleWordCASSupported) ||
-       (symbol->getRecognizedMethod()==TR::java_util_concurrent_atomic_AtomicStampedReference_doubleWordCASSupported) ||
-       (symbol->getRecognizedMethod()==TR::java_util_concurrent_atomic_AtomicMarkableReference_doubleWordSetSupported) ||
-       (symbol->getRecognizedMethod()==TR::java_util_concurrent_atomic_AtomicStampedReference_doubleWordSetSupported) ||
-
-       (symbol->getRecognizedMethod()==TR::java_util_concurrent_atomic_Fences_orderAccesses) ||
-       (symbol->getRecognizedMethod()==TR::java_util_concurrent_atomic_Fences_orderReads) ||
-       (symbol->getRecognizedMethod()==TR::java_util_concurrent_atomic_Fences_orderWrites) ||
-       (symbol->getRecognizedMethod()==TR::java_util_concurrent_atomic_Fences_reachabilityFence) ||
-
-       (symbol->getRecognizedMethod()==TR::sun_nio_ch_NativeThread_current) ||
-       (symbol->getRecognizedMethod()==TR::sun_misc_Unsafe_copyMemory) ||
-       (symbol->getRecognizedMethod()==TR::java_lang_String_hashCodeImplCompressed) ||
-       (symbol->getRecognizedMethod()==TR::java_lang_String_hashCodeImplDecompressed)
-      )
-      {
-      if (TR::TreeEvaluator::VMinlineCallEvaluator(node, false, cg))
-         returnRegister = node->getRegister();
-      else
-         returnRegister = TR::TreeEvaluator::performCall(node, false, true, cg);
-      }
-   else if (symbol->getRecognizedMethod() == TR::java_lang_String_compress)
-      {
-      return TR::TreeEvaluator::compressStringEvaluator(node, cg, useJapaneseCompression);
-      }
-   else if (symbol->getRecognizedMethod() == TR::java_lang_String_compressNoCheck)
-      {
-      return TR::TreeEvaluator::compressStringNoCheckEvaluator(node, cg, useJapaneseCompression);
-      }
-   else if (symbol->getRecognizedMethod() == TR::java_lang_String_andOR)
-      {
-      return TR::TreeEvaluator::andORStringEvaluator(node, cg);
-      }
-   else if ((symbol->getRecognizedMethod() == TR::com_ibm_crypto_provider_AEScryptInHardware_cbcEncrypt)
-         && cg->enableAESInHardwareTransformations() && !disableECCP256AESCBC
-         && !TR::Compiler->om.canGenerateArraylets() && TR::Compiler->target.is64Bit())
-      {
-      return TR::TreeEvaluator::VMP256AESCBCEncryptionEvaluator(node,cg);
-      }
-   else if ((symbol->getRecognizedMethod() == TR::com_ibm_crypto_provider_AEScryptInHardware_cbcDecrypt)
-         && cg->enableAESInHardwareTransformations() && !disableECCP256AESCBC
-         && !TR::Compiler->om.canGenerateArraylets() && TR::Compiler->target.is64Bit())
-      {
-       return TR::TreeEvaluator::VMP256AESCBCDecryptionEvaluator(node, cg);
-      }
-   else
-#endif
-      {
-      returnRegister = TR::TreeEvaluator::performCall(node, false, true, cg);
-      }
+   TR::Register *returnRegister = TR::TreeEvaluator::performCall(node, false, true, cg);
 
    // A strictfp caller needs to adjust double return values;
    // a float callee always returns values that have correct precision.
@@ -6219,12 +5831,6 @@ OMR::X86::TreeEvaluator::tabortEvaluator(TR::Node *node, TR::CodeGenerator *cg)
 
 TR::Register *
 OMR::X86::TreeEvaluator::VMarrayStoreCheckArrayCopyEvaluator(TR::Node*, TR::CodeGenerator*)
-   {
-   return 0;
-   }
-
-TR::Register *
-OMR::X86::TreeEvaluator::VMAESHelperEvaluator(TR::Node *node, TR::CodeGenerator *cg)
    {
    return 0;
    }

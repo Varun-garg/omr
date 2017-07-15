@@ -28,6 +28,9 @@
 #include "MarkMap.hpp"
 #include "MarkingScheme.hpp"
 #include "Task.hpp"
+#if defined(OMR_GC_CONCURRENT_SCAVENGER)
+#include "Scavenger.hpp"
+#endif /* OMR_GC_CONCURRENT_SCAVENGER */
 #if defined(OMR_GC_MODRON_CONCURRENT_MARK)
 #include "WorkPacketsConcurrent.hpp"
 #else
@@ -190,9 +193,21 @@ MM_MarkingScheme::masterCleanupAfterGC(MM_EnvironmentBase *env)
 void
 MM_MarkingScheme::workerSetupForGC(MM_EnvironmentBase *env)
 {
+	env->_markStats.clear();
+	env->_workPacketStats.clear();
 	env->_workStack.reset(env, _workPackets);
+	_delegate.workerSetupForGC(env);
 }
 
+void
+MM_MarkingScheme::workerCleanupAfterGC(MM_EnvironmentBase *env)
+{
+	_delegate.workerCleanupAfterGC(env);
+#if defined(OMR_GC_MODRON_STANDARD) || defined(OMR_GC_REALTIME)
+	_extensions->globalGCStats.markStats.merge(&env->_markStats);
+	_extensions->globalGCStats.workPacketStats.merge(&env->_workPacketStats);
+#endif /* defined(OMR_GC_MODRON_STANDARD) || defined(OMR_GC_REALTIME) */
+}
 
 
 /****************************************
@@ -359,7 +374,7 @@ MM_MarkingScheme::completeMarking(MM_EnvironmentBase *env)
 void
 MM_MarkingScheme::markLiveObjectsComplete(MM_EnvironmentBase *env)
 {
-	_delegate.markLiveObjectsComplete(env);
+	_delegate.workerCompleteGC(env);
 }
 
 MM_WorkPackets *
@@ -376,4 +391,13 @@ MM_MarkingScheme::createWorkPackets(MM_EnvironmentBase *env) {
 
 	return workPackets;
 }
+
+#if defined(OMR_GC_CONCURRENT_SCAVENGER)
+bool
+MM_MarkingScheme::isConcurrentScavengeInProgress()
+{
+	return _extensions->scavenger->isConcurrentInProgress();
+}
+#endif /* OMR_GC_CONCURRENT_SCAVENGER */
+
 

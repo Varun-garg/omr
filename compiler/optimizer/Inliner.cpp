@@ -1530,6 +1530,11 @@ TR_InlinerBase::createVirtualGuard(
    else if (guard->_type == TR_MethodTest)
       return TR_VirtualGuard::createMethodGuard(guard->_kind, comp(), calleeIndex, callNode,
              destination, calleeSymbol, thisClass);
+   else if (guard->_kind == TR_BreakpointGuard)
+      {
+      return TR_VirtualGuard::createBreakpointGuard(comp(), calleeIndex, callNode,
+             destination, calleeSymbol);
+      }
    else
       {
       TR_ASSERT(guard->_type == TR_NonoverriddenTest, "assertion failure");
@@ -1699,6 +1704,26 @@ void TR_InlinerBase::rematerializeCallArguments(TR_TransformInlinedFunction & ti
       }
    }
 
+void
+TR_InlinerBase::addAdditionalGuard(TR::Node *callNode, TR::ResolvedMethodSymbol * calleeSymbol, TR_OpaqueClassBlock * thisClass, TR::Block *prevBlock, TR::Block *inlinedBody, TR::Block *slowPath, TR_VirtualGuardKind kind, TR_VirtualGuardTestType type, bool favourVFTCompare, TR::CFG *callerCFG)
+   {
+   TR::Block *guardBlock = TR::Block::createEmptyBlock(callNode, comp(), prevBlock->getFrequency());
+      callerCFG->addNode(guardBlock);
+      callerCFG->addEdge(prevBlock, guardBlock);
+      callerCFG->addEdge(guardBlock, inlinedBody);
+      callerCFG->addEdge(guardBlock, slowPath);
+      callerCFG->copyExceptionSuccessors(prevBlock, guardBlock);
+      callerCFG->removeEdge(prevBlock, inlinedBody);
+
+      TR_VirtualGuardSelection *guard = new (trStackMemory()) TR_VirtualGuardSelection(kind, type);
+      TR::TreeTop *tt = guardBlock->append(TR::TreeTop::create(comp(),
+                                    createVirtualGuard(callNode, calleeSymbol, slowPath->getEntry(),
+                                       calleeSymbol->getFirstTreeTop()->getNode()->getInlinedSiteIndex(),
+                                       thisClass, favourVFTCompare, guard)));
+      guardBlock->setDoNotProfile();
+      prevBlock->getExit()->join(guardBlock->getEntry());
+      guardBlock->getExit()->join(inlinedBody->getEntry());
+   }
 
 TR::TreeTop *
 TR_InlinerBase::addGuardForVirtual(
@@ -1832,6 +1857,12 @@ TR_InlinerBase::addGuardForVirtual(
       }
    else if (!disableHCRGuards && comp()->getHCRMode() != TR::none)
       createdHCRGuard = true;
+
+   static const char *enableFSDGuard = feGetEnv("TR_EnableFSDGuard");
+   if ( enableFSDGuard && comp()->getOption(TR_FullSpeedDebug) && guard->_kind != TR_BreakpointGuard)
+      {
+      addAdditionalGuard(callNode, calleeSymbol, thisClass, block1, block2, block4, TR_BreakpointGuard, TR_FSDTest, false /*favourVftCompare*/,callerCFG);
+      }
 
    bool appendTestToBlock1 = false;
    if (guard->_kind == TR_InnerGuard)
@@ -1988,7 +2019,7 @@ TR_InlinerBase::addGuardForVirtual(
            createdHCRGuard ||
            (osrForNonHCRGuards && shouldAttemptOSR)))
          {
-         TR::TreeTop *induceTree = callerSymbol->genInduceOSRCallForGuardedCallee(guardedCallNodeTreeTop, calleeSymbol, (callNode->getNumChildren() - callNode->getFirstArgumentIndex()), false, false);
+         TR::TreeTop *induceTree = callerSymbol->genInduceOSRCall(guardedCallNodeTreeTop, callNode->getByteCodeInfo().getCallerIndex(), (callNode->getNumChildren() - callNode->getFirstArgumentIndex()), false, false);
          if (induceOSRCallTree)
             *induceOSRCallTree = induceTree;
          }
@@ -3865,16 +3896,23 @@ bool TR_DirectCallSite::findCallSiteTarget (TR_CallStack* callStack, TR_InlinerB
   if (inliner->getPolicy()->replaceSoftwareCheckWithHardwareCheck(_initialCalleeMethod))
       return false;
 
+
    TR_OpaqueClassBlock *tempreceiverClass;
    TR_VirtualGuardSelection *guard;
    static const char *disableHCRGuards2 = feGetEnv("TR_DisableHCRGuards");
 
    const bool skipHCRGuardForCallee = inliner->getPolicy()->skipHCRGuardForCallee(_initialCalleeMethod);
 
+   static const char *enableFSDGuard = feGetEnv("TR_EnableFSDGuard");
    if (!disableHCRGuards2 && comp()->getHCRMode() != TR::none && !comp()->compileRelocatableCode() && !skipHCRGuardForCallee)
       {
       tempreceiverClass = _initialCalleeMethod->classOfMethod();
       guard = new (comp()->trHeapMemory()) TR_VirtualGuardSelection(TR_HCRGuard, TR_NonoverriddenTest);
+      }
+   else if (enableFSDGuard && comp()->getOption(TR_FullSpeedDebug))
+      {
+      tempreceiverClass = _receiverClass;
+      guard = new (comp()->trHeapMemory()) TR_VirtualGuardSelection(TR_BreakpointGuard, TR_FSDTest);
       }
    else
       {

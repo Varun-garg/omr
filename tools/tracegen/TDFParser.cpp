@@ -14,6 +14,7 @@
  *
  * Contributors:
  *    Multiple authors (IBM Corp.) - initial implementation and documentation
+ *    James Johnston (IBM Corp.)   - initial z/TPF Port Updates
  *******************************************************************************/
 
 #include <ctype.h>
@@ -229,6 +230,9 @@ TDFParser::processTracePointDetail(const char *line, J9TDFTracepoint *tp, const 
 			tok = strtok(NULL, " \t");
 		} else if (StringUtils::startsWithUpperLower(tok, (UT_ASSERT_TYPE == tp->type ? "Assert=" : "Template="))) {
 			tp->format = getTemplate(line, (UT_ASSERT_TYPE == tp->type ? "Assert=" : "Template="));
+			if (NULL == tp->format){
+				goto failed;
+			}
 			line = line + strlen((UT_ASSERT_TYPE == tp->type ? "Assert=" : "Template=")) + (strlen(tp->format) + 2 /* two quotes */);
 			while ((' ' == *line  || '\t' == *line) && '\0' != *line) {
 				line = line + 1;
@@ -336,6 +340,10 @@ TDFParser::getTemplate(const char *line, const char *key)
 {
 	char *format = NULL;
 	size_t len = 0;
+	/*
+	 * Number of quotes in the string. Must be even when the string is fully parsed to ensure there is an opening and closing quote.
+	 */
+	int count = 0;
 
 	const char *vpos = line;
 
@@ -358,6 +366,18 @@ TDFParser::getTemplate(const char *line, const char *key)
 	}
 
 	len = (pos - vpos);
+	for (size_t i = 0; i < strlen(line); i++) {
+		if (line[i] == '\"') {
+			count++;
+		}
+	}
+	/*
+	 * If number of quotes is not even, then there must have been an opening quote without a closing quote
+	 */
+	if (count % 2 != 0) {
+		goto failed;
+	}
+
 	format = (char *)Port::omrmem_calloc(1, len + 1);
 	if (NULL == format) {
 		FileUtils::printError("Failed to allocate memory\n");
@@ -472,7 +492,11 @@ TDFParser::processAssertTemplate(const char *formatTemplate, unsigned int *count
 		if ('P' == *pos) {
 			pos++;
 			numStart = pos;
+#if !defined(OMRZTPF)
 			while (isdigit(*pos)) {
+#else
+			while (isdigit((unsigned char)*pos)) {
+#endif
 				pos++;
 			}
 			num = atoi(numStart);
@@ -579,7 +603,11 @@ TDFParser::processTemplate(const char *formatTemplate, char *str, unsigned int *
 					 * For a valid string, there must always be a follow on
 					 * type specifier, so this code runs in all valid cases
 					 */
+#if !defined(OMRZTPF)
 					char peekAhead = *(pos + 1);
+#else
+					unsigned char peekAhead = *(pos + 1);
+#endif
 					if (3 == state) {
 						/* This 0 is a continuation of a width specifier */
 					} else if ('.' == peekAhead) {

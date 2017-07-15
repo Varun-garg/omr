@@ -1,6 +1,6 @@
 /*******************************************************************************
  *
- * (c) Copyright IBM Corp. 2015, 2015
+ * (c) Copyright IBM Corp. 2015, 2017
  *
  *  This program and the accompanying materials are made available
  *  under the terms of the Eclipse Public License v1.0 and
@@ -24,6 +24,7 @@
 #include "omrExampleVM.hpp"
 #include "omrgc.h"
 #include "SlotObject.hpp"
+#include "StandardWriteBarrier.hpp"
 #include "VerboseWriterChain.hpp"
 
 //#define OMRGCTEST_PRINTFILE
@@ -596,7 +597,7 @@ GCConfigTest::attachChildEntry(ObjectEntry *parentEntry, ObjectEntry *childEntry
 
 	if ((uint32_t)parentEntry->numOfRef < slotCount) {
 		fomrobject_t *childSlot = firstSlot + parentEntry->numOfRef;
-		cli->writeBarrierStore(exampleVM->_omrVMThread, parentEntry->objPtr, childSlot, childEntry->objPtr);
+		standardWriteBarrierStore(exampleVM->_omrVMThread, parentEntry->objPtr, childSlot, childEntry->objPtr);
 		gcTestEnv->log(LEVEL_VERBOSE, "\tadd child %s(%p) to parent %s(%p) slot %p[%llx].\n", 
         		childEntry->name, childEntry->objPtr, parentEntry->name, parentEntry->objPtr, childSlot, (uintptr_t)*childSlot); 
 		parentEntry->numOfRef += 1;
