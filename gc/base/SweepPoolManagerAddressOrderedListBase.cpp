@@ -35,6 +35,10 @@
 #include "SweepPoolManagerAddressOrderedListBase.hpp"
 #include "ModronAssertions.h"
 
+#if defined(OMR_VALGRIND_MEMCHECK)
+#include <valgrind/memcheck.h>
+#endif /* defined(OMR_VALGRIND_MEMCHECK) */
+
 /**
  * Initialize any internal structures.
  * @return true if initialization is successful, false otherwise.
@@ -503,6 +507,11 @@ MM_SweepPoolManagerAddressOrderedListBase::addFreeMemory(MM_EnvironmentBase *env
 		result = true;
 	}
 	
+#if defined(OMR_VALGRIND_MEMCHECK)
+	VALGRIND_MEMPOOL_CLEAR(_extensions->valgrindMempoolAddr,address,address + (uintptr_t)MM_Bits::convertSlotsToBytes(size));
+	VALGRIND_MAKE_MEM_NOACCESS(address,address + (uintptr_t)MM_Bits::convertSlotsToBytes(size));
+#endif /* defined(OMR_VALGRIND_MEMCHECK) */
+
 	return result;
 }
 #endif /* defined(OMR_GC_MODRON_STANDARD) */
