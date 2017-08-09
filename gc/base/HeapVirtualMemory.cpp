@@ -374,7 +374,8 @@ MM_HeapVirtualMemory::heapRemoveRange(MM_EnvironmentBase* env, MM_MemorySubSpace
 
 #if defined(OMR_VALGRIND_MEMCHECK)
 	//remove heap range from valgrind
-	VALGRIND_MAKE_MEM_UNDEFINED(lowAddress,highAddress);
+	 // we don't need this range in valgrind / mempool anymore, better to mark it as defined
+	VALGRIND_MAKE_MEM_DEFINED(lowAddress,highAddress);
 #endif /* defined(OMR_VALGRIND_MEMCHECK) */
 
 	return result;

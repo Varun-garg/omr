@@ -467,7 +467,7 @@ MM_SweepPoolManagerAddressOrderedListBase::addFreeMemory(MM_EnvironmentBase *env
 	for(it = _extensions->_allocatedObjects.lower_bound((uintptr_t)address); it!= _extensions->_allocatedObjects.upper_bound((uintptr_t)address + (uintptr_t)MM_Bits::convertSlotsToBytes(size));it++)
 	{
 		int objSize = (int) ( (GC_ObjectModel)_extensions->objectModel ).getConsumedSizeInBytesWithHeader( (omrobjectptr_t) *it);
-		omrtty_printf("VALGRIND: Clearing chunk at %x of size %d\n", *it,objSize);
+		omrtty_printf("VALGRIND: Clearing object at %x of size %d\n", *it,objSize);
 		VALGRIND_MEMPOOL_FREE(_extensions->valgrindMempoolAddr,*it);		
 	}
 	_extensions->_allocatedObjects.erase(_extensions->_allocatedObjects.lower_bound((uintptr_t)address), 
