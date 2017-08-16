@@ -64,7 +64,6 @@ MM_MarkingDelegate::masterCleanupAfterGC(MM_EnvironmentBase *env)
 		if (!_markingScheme->isMarked(oEntry->objPtr)) {
 #if defined(OMR_VALGRIND_MEMCHECK)
 	VALGRIND_MEMPOOL_FREE(env->getExtensions()->valgrindMempoolAddr,oEntry->objPtr);
-	VALGRIND_MAKE_MEM_NOACCESS(oEntry->objPtr,objSize);
 #endif /* defined(OMR_VALGRIND_MEMCHECK) */
 			omrmem_free_memory((void *)oEntry->name);
 			oEntry->name = NULL;
