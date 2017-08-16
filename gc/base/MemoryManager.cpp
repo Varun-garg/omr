@@ -514,7 +514,7 @@ MM_MemoryManager::destroyVirtualMemory(MM_EnvironmentBase* env, MM_MemoryHandle*
 		//check any left over chunks
 		std::set<uintptr_t>::iterator it;
 		OMRPORT_ACCESS_FROM_OMRPORT(env->getPortLibrary());
-		omrtty_printf("VALGRIND: Destroying virtual memory, looking for any chunks still left\n");
+		omrtty_printf("VALGRIND: Destroying virtual memory, looking for any objects still left\n");
 
 		for(it = env->getExtensions()->_allocatedObjects.begin(); it != env->getExtensions()->_allocatedObjects.begin(); it++)
 		{
