@@ -63,6 +63,9 @@ MM_MarkingDelegate::masterCleanupAfterGC(MM_EnvironmentBase *env)
 	while (oEntry != NULL) {
 		if (!_markingScheme->isMarked(oEntry->objPtr)) {
 #if defined(OMR_VALGRIND_MEMCHECK)
+	OMRPORT_ACCESS_FROM_OMRPORT(env->getPortLibrary());
+	int objSize = (int) ( (GC_ObjectModel)env->getExtensions()->objectModel ).getConsumedSizeInBytesWithHeader( (omrobjectptr_t) oEntry->objPtr);
+	omrtty_printf("VALGRIND: Clearing object at %x of size %d\n", oEntry->objPtr,objSize);
 	VALGRIND_MEMPOOL_FREE(env->getExtensions()->valgrindMempoolAddr,oEntry->objPtr);
 	VALGRIND_MAKE_MEM_NOACCESS(oEntry->objPtr,objSize);
 #endif /* defined(OMR_VALGRIND_MEMCHECK) */
