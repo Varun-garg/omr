@@ -627,6 +627,7 @@ MM_MemorySubSpaceSemiSpace::poisonEvacuateSpace()
 				_extensions->_allocatedObjects.erase(lBound,++uBound);//uBound is exclusive
 			}
 		}
+		skip_valgrind:		
 		//The space is already dead (objects).... lets redefine so it can be poisoned!
 #if defined(VALGRIND_REQUEST_LOGS)	
 		VALGRIND_PRINTF_BACKTRACE("Marking region as defined at %lx of size %lu\n",(uintptr_t)_allocateSpaceBase,
@@ -640,11 +641,10 @@ MM_MemorySubSpaceSemiSpace::poisonEvacuateSpace()
 		*current = pattern;
 		current += 1;
 	}
-	
+
 #if defined(OMR_VALGRIND_MEMCHECK)			
 	if((uintptr_t) _allocateSpaceTop > (uintptr_t) _allocateSpaceBase)
 	{
-skip_valgrind:
 			//remove range from valgrind
 #if defined(VALGRIND_REQUEST_LOGS)			
 		VALGRIND_PRINTF("Marking area as noaccess at %lx of size %lx (to %lx)\n",(uintptr_t)_allocateSpaceBase,
