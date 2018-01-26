@@ -50,6 +50,7 @@ typedef struct HashtableInputData {
 	uint32_t listToTreeThreshold;
 	BOOLEAN forceCollisions;
 	BOOLEAN collisionResistant;
+	uint16_t padding;
 } HashtableInputData;
 
 /* ---------------- avltest.c ---------------- */
