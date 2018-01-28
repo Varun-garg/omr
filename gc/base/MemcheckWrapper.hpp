@@ -30,7 +30,6 @@
 #include "omrcfg.h"
 #if defined(OMR_VALGRIND_MEMCHECK)
 
-#include <set>
 #include "stdint.h"
 
 #if 0
@@ -38,15 +37,17 @@
 #endif
 
 class MM_GCExtensionsBase;
+class MM_EnvironmentBase;
 
 /**
  * Create memory pool and store its address.
  *
  * @param[in] extensions pointer to MM_GCExtensionsBase.
+ * @param[in] env pointer to MM_EnvironmentBase.
  * @param[in] poolAddr address to refer to memory pool.
  *
 */
-void valgrindCreateMempool(MM_GCExtensionsBase *extensions,uintptr_t poolAddr);
+void valgrindCreateMempool(MM_GCExtensionsBase *extensions, MM_EnvironmentBase* env, uintptr_t poolAddr);
 
 /**
  * Destroy memory pool.
@@ -116,6 +117,18 @@ void valgrindFreeObject(MM_GCExtensionsBase *extensions, uintptr_t baseAddress);
  *
 */
 bool valgrindCheckObjectInPool(MM_GCExtensionsBase *extensions, uintptr_t baseAddress);
+
+/**
+ * Resize an object in memory pool.
+ * If size is reduced, remaining memory will be marked as noaccess.
+ *
+ * @param[in] extensions pointer to MM_GCExtensionsBase.
+ * @param[in] baseAddress starting address of the range.
+ * @param[in] oldSize size of the old object.
+ * @param[in] newSize size of the new object.
+ *
+*/
+void valgrindResizeObject(MM_GCExtensionsBase *extensions, uintptr_t baseAddress, uintptr_t oldSize, uintptr_t newSize);
 
 #endif /* defined(OMR_VALGRIND_MEMCHECK) */
 

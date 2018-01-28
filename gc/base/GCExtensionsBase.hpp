@@ -49,10 +49,6 @@
 #include "ScavengerStats.hpp"
 #include "SublistPool.hpp"
 
-#if defined(OMR_VALGRIND_MEMCHECK)
-#include <set>
-#endif /* defined(OMR_VALGRIND_MEMCHECK) */
-
 class MM_CardTable;
 class MM_ClassLoaderRememberedSet;
 class MM_Collector;
@@ -734,8 +730,8 @@ public:
 #endif
 
 #if defined(OMR_VALGRIND_MEMCHECK)
-	uintptr_t valgrindMempoolAddr; /** <Memory pool's address for valgrind> **/
-	std::set<uintptr_t> _allocatedObjects;
+	uintptr_t valgrindMempoolAddr; /** < Memory pool's address for valgrind **/
+	J9HashTable *MemcheckHashTable = NULL; /** <Hash table to store object addresses for valgrind> **/
 #endif /* defined(OMR_VALGRIND_MEMCHECK) */
 
 	/* Function Members */
