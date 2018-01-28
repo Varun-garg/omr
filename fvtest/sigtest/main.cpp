@@ -40,5 +40,6 @@ testMain(int argc, char **argv, char **envp)
 	omrTestEnv = (PortEnvironment *)testing::AddGlobalTestEnvironment(new PortEnvironment(argc, argv));
 	int result = RUN_ALL_TESTS();
 	DETACH_OMRTHREAD();
+	omrthread_shutdown_library();
 	return result;
 }

@@ -506,6 +506,7 @@ setupExistingHandlerConditions(bool existingPrimary, bool existingSecondary, boo
 			stack.ss_flags = SS_DISABLE;
 			/* To compensate for OSX bug, this is needed to prevent ENOMEM error. */
 			stack.ss_size = SIGSTKSZ;
+			stack.ss_sp = NULL;
 		}
 		if (0 != sigaltstack(&stack, NULL)) {
 			rc = OMR_ERROR_INTERNAL;
