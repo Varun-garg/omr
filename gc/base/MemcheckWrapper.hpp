@@ -31,8 +31,12 @@
 #if defined(OMR_VALGRIND_MEMCHECK)
 
 #include "stdint.h"
+#include "HashTableIterator.hpp"
+#include <valgrind/memcheck.h>
+//#include "GCExtensionsBase.hpp"
+//#include "EnvironmentBase.hpp"
 
-#if 0
+#if 1
 #define VALGRIND_REQUEST_LOGS
 #endif
 
