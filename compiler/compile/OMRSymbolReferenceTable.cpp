@@ -112,8 +112,6 @@ OMR::SymbolReferenceTable::SymbolReferenceTable(size_t sizeHint, TR::Compilation
      _classStaticsSymbolRefs(comp->trMemory()),
      _classDLPStaticsSymbolRefs(comp->trMemory()),
      _debugCounterSymbolRefs(comp->trMemory()),
-     _currentThreadDebugEventDataSymbol(0),
-     _currentThreadDebugEventDataSymbolRefs(comp->trMemory()),
      _methodsBySignature(8, comp->allocator("SymRefTab")), // TODO: Determine a suitable default size
      _hasImmutable(false),
      _hasUserField(false),
@@ -1688,9 +1686,9 @@ OMR::SymbolReferenceTable::makeAutoAvailableForIlGen(TR::SymbolReference * a)
 
 TR::ParameterSymbol *
 OMR::SymbolReferenceTable::createParameterSymbol(
-   TR::ResolvedMethodSymbol * owningMethodSymbol, int32_t slot, TR::DataType type, bool isUnsigned)
+   TR::ResolvedMethodSymbol * owningMethodSymbol, int32_t slot, TR::DataType type)
    {
-   TR::ParameterSymbol * sym = TR::ParameterSymbol::create(trHeapMemory(),type,isUnsigned,slot);
+   TR::ParameterSymbol * sym = TR::ParameterSymbol::create(trHeapMemory(),type,slot);
 
    TR::SymbolReference *symRef = new (trHeapMemory()) TR::SymbolReference(self(), sym, owningMethodSymbol->getResolvedMethodIndex(), slot);
    owningMethodSymbol->setParmSymRef(slot, symRef);

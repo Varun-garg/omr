@@ -1,5 +1,5 @@
 ###############################################################################
-# Copyright (c) 2017, 2017 IBM Corp. and others
+# Copyright (c) 2017, 2018 IBM Corp. and others
 #
 # This program and the accompanying materials are made available under
 # the terms of the Eclipse Public License 2.0 which accompanies this
@@ -323,61 +323,23 @@ function(create_omr_compiler_library)
 		${COMPILER_OBJECTS}
 	)
 
-	# Populated and then will use target_sources to append to the compiler library.
-	set(CORE_COMPILER_OBJECTS "")
-
-	# Add the contents of the macro to CORE_COMPILER_OBJECTS in this scope.
-	# The library name parameter is currently ignored.
-	macro(compiler_library libraryname)
-		# Since CMake *copies* the enviornment from parent to child scope,
-		# a PARENT_SCOPE set ultimately is not reflected for local lookups.
-		# As a result, we need to _also_ update the local scope here if we
-		# want this to succeed when called multiple times in a scope.
-		set(CORE_COMPILER_OBJECTS ${CORE_COMPILER_OBJECTS} ${ARGN}             )
-		set(CORE_COMPILER_OBJECTS ${CORE_COMPILER_OBJECTS} ${ARGN} PARENT_SCOPE)
-	endmacro(compiler_library)
-
-	# Because we want to be able to build multiple compiler
-	# components in the same tree (ie the compiler test code, as
-	# well as JitBuilder, we can't just use the plain add_subdirectory,
-	# CMake demands we specify the object target directory as well.
-	#
-	# This macro computes an appropriate target directory.
-	macro(add_compiler_subdirectory dir)
-		add_subdirectory(${omr_SOURCE_DIR}/compiler/${dir}
-			${CMAKE_CURRENT_BINARY_DIR}/compiler/${dir}_${COMPILER_NAME})
-	endmacro(add_compiler_subdirectory)
-
-
-	# There's a little bit of a song and dance here
-	# I wonder if it's not better to just have a
-	# unified object list.
-	add_compiler_subdirectory(ras)
-	add_compiler_subdirectory(compile)
-	add_compiler_subdirectory(codegen)
-	add_compiler_subdirectory(control)
-	add_compiler_subdirectory(env)
-	add_compiler_subdirectory(infra)
-	add_compiler_subdirectory(il)
-	add_compiler_subdirectory(optimizer)
-	add_compiler_subdirectory(runtime)
-	add_compiler_subdirectory(ilgen)
-
-	add_compiler_subdirectory(${TR_TARGET_ARCH})
+	# Grab the list of core compiler objects from the global property.
+	# Note: the property is initialized by compiler/CMakeLists.txt
+	get_property(core_compiler_objects GLOBAL PROPERTY OMR_CORE_COMPILER_OBJECTS)
 
 	# Filter out objects requested to be removed by
 	# client project (if any):
 	foreach(object ${COMPILER_FILTER})
 		get_filename_component(abs_filename ${object} ABSOLUTE)
-		list(REMOVE_ITEM CORE_COMPILER_OBJECTS ${abs_filename})
+		list(REMOVE_ITEM core_compiler_objects ${abs_filename})
 	endforeach()
 
 
 
-	omr_inject_object_modification_targets(CORE_COMPILER_OBJECTS ${COMPILER_NAME} ${CORE_COMPILER_OBJECTS})
+	omr_inject_object_modification_targets(core_compiler_objects ${COMPILER_NAME} ${core_compiler_objects})
 
 	# Append to the compiler sources list
-	target_sources(${COMPILER_NAME} PRIVATE ${CORE_COMPILER_OBJECTS})
+	target_sources(${COMPILER_NAME} PRIVATE ${core_compiler_objects})
 
 
 

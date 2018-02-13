@@ -270,7 +270,7 @@ class SymbolReferenceTable
 
    TR::SymbolReference * findOrCreateCodeGenInlinedHelper(CommonNonhelperSymbol index);
 
-   TR::ParameterSymbol * createParameterSymbol(TR::ResolvedMethodSymbol * owningMethodSymbol, int32_t slot, TR::DataType, bool isUnsigned);
+   TR::ParameterSymbol * createParameterSymbol(TR::ResolvedMethodSymbol * owningMethodSymbol, int32_t slot, TR::DataType);
    TR::SymbolReference * findOrCreateAutoSymbol(TR::ResolvedMethodSymbol * owningMethodSymbol, int32_t slot, TR::DataType, bool isReference = true,
          bool isInternalPointer = false, bool reuseAuto = true, bool isAdjunct = false, size_t size = 0);
    TR::SymbolReference * createTemporary(TR::ResolvedMethodSymbol * owningMethodSymbol, TR::DataType, bool isInternalPointer = false, size_t size = 0);
@@ -471,8 +471,6 @@ class SymbolReferenceTable
    List<TR::SymbolReference>            _classStaticsSymbolRefs;
    List<TR::SymbolReference>            _classDLPStaticsSymbolRefs;
    List<TR::SymbolReference>            _debugCounterSymbolRefs;
-   TR::Symbol                           *_currentThreadDebugEventDataSymbol;
-   List<TR::SymbolReference>            _currentThreadDebugEventDataSymbolRefs;
 
    uint32_t                            _nextRegShadowIndex;
    int32_t                             _numUnresolvedSymbols;
