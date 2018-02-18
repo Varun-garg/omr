@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017, 2017 IBM Corp. and others
+ * Copyright (c) 2017, 2018 IBM Corp. and others
  *
  * This program and the accompanying materials are made available under
  * the terms of the Eclipse Public License 2.0 which accompanies this
@@ -32,6 +32,8 @@
 #include "EnvironmentBase.hpp"
 #include "hashtable_api.h"
 #include "HashTableIterator.hpp"
+
+pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 
 typedef struct HashtableInputData {
 	const char* hashtableName;
@@ -68,6 +70,7 @@ static J9HashTable * allocateHashtable(OMRPortLibrary *portLib, HashtableInputDa
 	const char *tableName = inputData->hashtableName;
 	uint32_t entrySize = sizeof(uintptr_t);
 
+    pthread_mutex_lock(&lock);
 	hashtable = hashTableNew(portLib,
 			tableName,
 			//HASH_TABLE_SIZE_MAX,
@@ -80,7 +83,8 @@ static J9HashTable * allocateHashtable(OMRPortLibrary *portLib, HashtableInputDa
 			hashEqualFn,
 			0,
 			0);
-	hashTableCanGrow(hashtable);
+//	hashTableCanGrow(hashtable);
+    pthread_mutex_unlock(&lock);
 	return hashtable;
 }
 
@@ -107,9 +111,11 @@ void valgrindDestroyMempool(MM_GCExtensionsBase *extensions)
         //All objects should have been freed by now!
         // Assert_MM_true(extensions->_allocatedObjects.empty());
         VALGRIND_DESTROY_MEMPOOL(extensions->valgrindMempoolAddr);
+        pthread_mutex_lock(&lock);
         extensions->valgrindMempoolAddr = 0;
         hashTableFree(extensions->MemcheckHashTable);
         extensions->MemcheckHashTable = NULL;
+        pthread_mutex_unlock(&lock);
     }
 }
 
@@ -121,7 +127,9 @@ void valgrindMempoolAlloc(MM_GCExtensionsBase *extensions, uintptr_t baseAddress
 
     /* Allocate object in Valgrind memory pool. */
     VALGRIND_MEMPOOL_ALLOC(extensions->valgrindMempoolAddr, baseAddress, size);
+    pthread_mutex_lock(&lock);
     hashTableAdd(extensions->MemcheckHashTable, &baseAddress);
+    pthread_mutex_unlock(&lock);
 }
 
 void valgrindMakeMemDefined(uintptr_t address, uintptr_t size)
@@ -152,6 +160,7 @@ void valgrindClearRange(MM_GCExtensionsBase *extensions, uintptr_t baseAddress, 
     VALGRIND_PRINTF_BACKTRACE("Clearing objects in range b/w 0x%lx and  0x%lx\n", baseAddress,topInclusiveAddr);
 #endif /* defined(VALGRIND_REQUEST_LOGS) */
 
+    pthread_mutex_lock(&lock);
     GC_HashTableIterator it(extensions->MemcheckHashTable);
     uintptr_t *currentSlotPointer = (uintptr_t*) it.nextSlot();
     while(currentSlotPointer != NULL)
@@ -163,6 +172,7 @@ void valgrindClearRange(MM_GCExtensionsBase *extensions, uintptr_t baseAddress, 
         }
         currentSlotPointer = (uintptr_t*)it.nextSlot(); // TODO:
     }
+    pthread_mutex_unlock(&lock);
 
     /* Valgrind automatically marks free objects as noaccess.
     We still mark the entire region as no access for any left out areas */
@@ -183,7 +193,10 @@ void valgrindFreeObject(MM_GCExtensionsBase *extensions, uintptr_t baseAddress)
 
     VALGRIND_CHECK_MEM_IS_DEFINED(baseAddress,objSize);
     VALGRIND_MEMPOOL_FREE(extensions->valgrindMempoolAddr,baseAddress);
+    
+    pthread_mutex_lock(&lock);
     hashTableRemove(extensions->MemcheckHashTable,&baseAddress);
+    pthread_mutex_unlock(&lock);
 }
 
 MMINLINE void valgrindFreeObjectDirect(MM_GCExtensionsBase *extensions, uintptr_t baseAddress)
@@ -208,10 +221,17 @@ bool valgrindCheckObjectInPool(MM_GCExtensionsBase *extensions, uintptr_t baseAd
     VALGRIND_PRINTF("Checking for object at 0x%lx\n", baseAddress);
 #endif /* defined(VALGRIND_REQUEST_LOGS) */
 
+    pthread_mutex_lock(&lock);
     if(hashTableFind(extensions->MemcheckHashTable,&baseAddress) != NULL)
+    {
+        pthread_mutex_unlock(&lock);
         return true;
+    }
     else
+    {   
+        pthread_mutex_unlock(&lock); 
         return false;
+    }
 }
 
 void valgrindResizeObject(MM_GCExtensionsBase *extensions, uintptr_t baseAddress, uintptr_t oldSize, uintptr_t newSize)
