@@ -33,15 +33,6 @@
 #include "hashtable_api.h"
 #include "HashTableIterator.hpp"
 
-pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
-
-typedef struct HashtableInputData {
-	const char* hashtableName;
-	const uintptr_t* data;
-	uintptr_t dataLength;
-	BOOLEAN forceCollisions;
-} HashtableInputData;
-
 static uintptr_t hashFn(void *key, void *userData);
 static uintptr_t hashEqualFn(void *leftKey, void *rightKey, void *userData);
 
@@ -64,13 +55,12 @@ static uintptr_t hashFn(void *key, void *userData)
  	return memcheckHashFn(*(uintptr_t *)key);
 }
 
-static J9HashTable * allocateHashtable(OMRPortLibrary *portLib, HashtableInputData *inputData)
+static J9HashTable * allocateHashtable(OMRPortLibrary *portLib)
 {
 	J9HashTable *hashtable = NULL;
-	const char *tableName = inputData->hashtableName;
+	const char *tableName = "MemcheckWrapper";
 	uint32_t entrySize = sizeof(uintptr_t);
 
-    pthread_mutex_lock(&lock);
 	hashtable = hashTableNew(portLib,
 			tableName,
 			//HASH_TABLE_SIZE_MAX,
@@ -83,8 +73,6 @@ static J9HashTable * allocateHashtable(OMRPortLibrary *portLib, HashtableInputDa
 			hashEqualFn,
 			0,
 			0);
-//	hashTableCanGrow(hashtable);
-    pthread_mutex_unlock(&lock);
 	return hashtable;
 }
 
@@ -95,13 +83,11 @@ void valgrindCreateMempool(MM_GCExtensionsBase *extensions, MM_EnvironmentBase* 
     //1 lets valgrind know that objects will be defined when allocated
     VALGRIND_CREATE_MEMPOOL(poolAddr, 0, 1);
     extensions->valgrindMempoolAddr = poolAddr;
-
-    HashtableInputData *hashtableInputData = (HashtableInputData *) malloc(sizeof(HashtableInputData));
-    hashtableInputData->hashtableName = "MemcheckHashTable";
-    hashtableInputData->forceCollisions = TRUE;
-    hashtableInputData->dataLength = sizeof(uintptr_t);
-    extensions->MemcheckHashTable = allocateHashtable(env->getPortLibrary(),hashtableInputData);
-
+    
+    MUTEX_INIT(extensions->MemcheckHashTable_mutex);
+    MUTEX_ENTER(extensions->MemcheckHashTable_mutex);
+    extensions->MemcheckHashTable = allocateHashtable(env->getPortLibrary());
+    MUTEX_EXIT(extensions->MemcheckHashTable_mutex);
 }
 
 void valgrindDestroyMempool(MM_GCExtensionsBase *extensions)
@@ -111,11 +97,12 @@ void valgrindDestroyMempool(MM_GCExtensionsBase *extensions)
         //All objects should have been freed by now!
         // Assert_MM_true(extensions->_allocatedObjects.empty());
         VALGRIND_DESTROY_MEMPOOL(extensions->valgrindMempoolAddr);
-        pthread_mutex_lock(&lock);
+        MUTEX_ENTER(extensions->MemcheckHashTable_mutex);
         extensions->valgrindMempoolAddr = 0;
         hashTableFree(extensions->MemcheckHashTable);
         extensions->MemcheckHashTable = NULL;
-        pthread_mutex_unlock(&lock);
+        MUTEX_EXIT(extensions->MemcheckHashTable_mutex);
+        MUTEX_DESTROY(extensions->MemcheckHashTable_mutex);
     }
 }
 
@@ -125,11 +112,11 @@ void valgrindMempoolAlloc(MM_GCExtensionsBase *extensions, uintptr_t baseAddress
     VALGRIND_PRINTF_BACKTRACE("Allocating object at 0x%lx of size %lu\n", baseAddress, size);
 #endif /* defined(VALGRIND_REQUEST_LOGS) */
 
-    /* Allocate object in Valgrind memory pool. */
+    /* Allocate object in Valgrind memory pool. */  
     VALGRIND_MEMPOOL_ALLOC(extensions->valgrindMempoolAddr, baseAddress, size);
-    pthread_mutex_lock(&lock);
+    MUTEX_ENTER(extensions->MemcheckHashTable_mutex);
     hashTableAdd(extensions->MemcheckHashTable, &baseAddress);
-    pthread_mutex_unlock(&lock);
+    MUTEX_EXIT(extensions->MemcheckHashTable_mutex);
 }
 
 void valgrindMakeMemDefined(uintptr_t address, uintptr_t size)
@@ -160,7 +147,7 @@ void valgrindClearRange(MM_GCExtensionsBase *extensions, uintptr_t baseAddress, 
     VALGRIND_PRINTF_BACKTRACE("Clearing objects in range b/w 0x%lx and  0x%lx\n", baseAddress,topInclusiveAddr);
 #endif /* defined(VALGRIND_REQUEST_LOGS) */
 
-    pthread_mutex_lock(&lock);
+    MUTEX_ENTER(extensions->MemcheckHashTable_mutex);
     GC_HashTableIterator it(extensions->MemcheckHashTable);
     uintptr_t *currentSlotPointer = (uintptr_t*) it.nextSlot();
     while(currentSlotPointer != NULL)
@@ -172,7 +159,7 @@ void valgrindClearRange(MM_GCExtensionsBase *extensions, uintptr_t baseAddress, 
         }
         currentSlotPointer = (uintptr_t*)it.nextSlot(); // TODO:
     }
-    pthread_mutex_unlock(&lock);
+    MUTEX_EXIT(extensions->MemcheckHashTable_mutex);
 
     /* Valgrind automatically marks free objects as noaccess.
     We still mark the entire region as no access for any left out areas */
@@ -194,9 +181,9 @@ void valgrindFreeObject(MM_GCExtensionsBase *extensions, uintptr_t baseAddress)
     VALGRIND_CHECK_MEM_IS_DEFINED(baseAddress,objSize);
     VALGRIND_MEMPOOL_FREE(extensions->valgrindMempoolAddr,baseAddress);
     
-    pthread_mutex_lock(&lock);
+    MUTEX_ENTER(extensions->MemcheckHashTable_mutex);
     hashTableRemove(extensions->MemcheckHashTable,&baseAddress);
-    pthread_mutex_unlock(&lock);
+    MUTEX_EXIT(extensions->MemcheckHashTable_mutex);
 }
 
 MMINLINE void valgrindFreeObjectDirect(MM_GCExtensionsBase *extensions, uintptr_t baseAddress)
@@ -221,15 +208,15 @@ bool valgrindCheckObjectInPool(MM_GCExtensionsBase *extensions, uintptr_t baseAd
     VALGRIND_PRINTF("Checking for object at 0x%lx\n", baseAddress);
 #endif /* defined(VALGRIND_REQUEST_LOGS) */
 
-    pthread_mutex_lock(&lock);
+    MUTEX_ENTER(extensions->MemcheckHashTable_mutex);
     if(hashTableFind(extensions->MemcheckHashTable,&baseAddress) != NULL)
     {
-        pthread_mutex_unlock(&lock);
+        MUTEX_EXIT(extensions->MemcheckHashTable_mutex);
         return true;
     }
     else
     {   
-        pthread_mutex_unlock(&lock); 
+        MUTEX_EXIT(extensions->MemcheckHashTable_mutex); 
         return false;
     }
 }
