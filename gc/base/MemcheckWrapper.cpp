@@ -85,7 +85,6 @@ void valgrindDestroyMempool(MM_GCExtensionsBase *extensions)
     if(extensions->valgrindMempoolAddr != 0)
 	{
         //All objects should have been freed by now!
-        // Assert_MM_true(extensions->_allocatedObjects.empty());
         VALGRIND_DESTROY_MEMPOOL(extensions->valgrindMempoolAddr);
         MUTEX_ENTER(extensions->MemcheckHashTable_mutex);
         extensions->valgrindMempoolAddr = 0;
