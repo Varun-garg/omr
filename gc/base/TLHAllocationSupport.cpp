@@ -51,7 +51,6 @@
 
 #if defined(OMR_VALGRIND_MEMCHECK)
 #include "MemcheckWrapper.hpp"
-// #undef OMR_VALGRIND_MEMCHECK
 #endif /* defined(OMR_VALGRIND_MEMCHECK) */
 
 #if defined(OMR_GC_THREAD_LOCAL_HEAP)
@@ -180,15 +179,12 @@ MM_TLHAllocationSupport::refresh(MM_EnvironmentBase *env, MM_AllocateDescription
 		MM_HeapLinkedFreeHeaderTLH* newCache = (MM_HeapLinkedFreeHeaderTLH*)getRealAlloc();
 
 #if defined(OMR_VALGRIND_MEMCHECK)
-		VALGRIND_MAKE_MEM_UNDEFINED((uintptr_t)newCache, sizeof(MM_HeapLinkedFreeHeaderTLH));			
+		valgrindMakeMemUndefined((uintptr_t)newCache, sizeof(MM_HeapLinkedFreeHeaderTLH));			
 #endif /* defined(OMR_VALGRIND_MEMCHECK) */
 	    newCache->setSize(getSize());
 		newCache->_memoryPool = getMemoryPool();
 		newCache->_memorySubSpace = getMemorySubSpace();
 		newCache->setNext(_abandonedList);
-#if defined(OMR_VALGRIND_MEMCHECK)					
-		// valgrindMakeMemNoaccess((uintptr_t)newCache, sizeof(MM_HeapLinkedFreeHeaderTLH));
-#endif /* defined(OMR_VALGRIND_MEMCHECK) */
 		_abandonedList = newCache;
 		++_abandonedListSize;
 		if (_abandonedListSize > stats->_tlhMaxAbandonedListSize) {
@@ -203,14 +199,8 @@ MM_TLHAllocationSupport::refresh(MM_EnvironmentBase *env, MM_AllocateDescription
 	/* Try allocating a TLH */
 	if ((NULL != _abandonedList) && (sizeInBytesRequired <= tlhMinimumSize)) {
 		/* Try to get a cached TLH */
-#if defined(OMR_VALGRIND_MEMCHECK)	
-		// VALGRIND_MAKE_MEM_UNDEFINED((uintptr_t)_abandonedList, sizeof(MM_HeapLinkedFreeHeaderTLH));			
-#endif /* defined(OMR_VALGRIND_MEMCHECK) */
 		setupTLH(env, (void *)_abandonedList, (void *)_abandonedList->afterEnd(),
 				_abandonedList->_memorySubSpace, _abandonedList->_memoryPool);
-#if defined(OMR_VALGRIND_MEMCHECK)					
-		// valgrindMakeMemNoaccess((uintptr_t)_abandonedList, sizeof(MM_HeapLinkedFreeHeaderTLH));
-#endif /* defined(OMR_VALGRIND_MEMCHECK) */
 		_abandonedList = (MM_HeapLinkedFreeHeaderTLH *)_abandonedList->getNext();
 		--_abandonedListSize;
 

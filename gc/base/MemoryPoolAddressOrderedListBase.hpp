@@ -32,6 +32,10 @@
 #include "MemoryPool.hpp"
 #include "EnvironmentBase.hpp"
 
+#if defined(OMR_VALGRIND_MEMCHECK)
+#include "MemcheckWrapper.hpp"
+#endif /* defined(OMR_VALGRIND_MEMCHECK) */
+
 class MM_SweepPoolManager;
 class MM_SweepPoolState;
 
@@ -81,7 +85,11 @@ protected:
 		/* Determine if the heap chunk belongs in the free list */
 		uintptr_t freeEntrySize = ((uintptr_t)addrTop) - ((uintptr_t)addrBase);
 		Assert_MM_true((uintptr_t)addrTop >= (uintptr_t)addrBase);
-		VALGRIND_MAKE_MEM_UNDEFINED((uintptr_t) addrBase, freeEntrySize);
+
+#if defined(OMR_VALGRIND_MEMCHECK)
+		valgrindMakeMemUndefined((uintptr_t) addrBase, freeEntrySize);
+#endif /* defined(OMR_VALGRIND_MEMCHECK) */
+
 		MM_HeapLinkedFreeHeader *freeEntry = MM_HeapLinkedFreeHeader::fillWithHoles(addrBase, freeEntrySize);
 		if ((NULL != freeEntry) && (freeEntrySize >= _minimumFreeEntrySize)) {
 			Assert_MM_true(freeEntry == addrBase);
