@@ -3345,6 +3345,13 @@ MM_Scavenger::backoutFixupAndReverseForwardPointersInSurvivor(MM_EnvironmentStan
 					MM_HeapLinkedFreeHeader* freeHeader = MM_HeapLinkedFreeHeader::getHeapLinkedFreeHeader(forwardedObject);
 #if defined(OMR_VALGRIND_MEMCHECK)
 					valgrindMempoolAlloc(_extensions,(uintptr_t) originalObject, (uintptr_t) evacuateObjectSizeInBytes);
+
+					// The object could have been (or not) initialized earlier.
+					// Since we don't know we mark it defined to prevent false warnings.
+					// But we also may miss some potential warnings.
+					// There can be a Memcheck API hack to fix this.
+					valgrindMakeMemDefined((uintptr_t) originalObject, (uintptr_t) evacuateObjectSizeInBytes);
+
 					valgrindFreeObject(_extensions, (uintptr_t) forwardedObject);
 					valgrindMakeMemUndefined((uintptr_t)freeHeader, (uintptr_t) sizeof(MM_HeapLinkedFreeHeader));
 #endif /* defined(OMR_VALGRIND_MEMCHECK) */

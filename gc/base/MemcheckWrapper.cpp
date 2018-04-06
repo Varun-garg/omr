@@ -71,7 +71,7 @@ MMINLINE void valgrindFreeObjectDirect(MM_GCExtensionsBase *extensions, uintptr_
 void valgrindCreateMempool(MM_GCExtensionsBase *extensions, MM_EnvironmentBase* env, uintptr_t poolAddr)
 {
     //1 lets valgrind know that objects will be defined when allocated
-    VALGRIND_CREATE_MEMPOOL(poolAddr, 0, 1);
+    VALGRIND_CREATE_MEMPOOL(poolAddr, 0, 0);
     extensions->valgrindMempoolAddr = poolAddr;
     
     MUTEX_INIT(extensions->MemcheckHashTable_mutex);
